@@ -1,2 +1,2 @@
 # Art_Classifier
- Implementing Resnet from scratch ,Densenet and Xception models to classify genres of the wikiart dataset.
+ Implementing Resnet model from scratch to classify genres of the wikiart dataset.
