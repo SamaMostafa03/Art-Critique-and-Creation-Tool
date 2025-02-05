@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Load the trained model
 try:
-    model = tf.keras.models.load_model("wikiart_multi_classification_model.h5")
+    model = tf.keras.models.load_model("genres_styles_classification_model.h5")
     logger.info("Model loaded successfully.")
 except Exception as e:
     logger.error(f"Error loading model: {e}")
