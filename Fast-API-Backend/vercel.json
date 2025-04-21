@@ -3,17 +3,11 @@
   "builds": [
     {
       "src": "genres_styles/dockerfile",
-      "use": "@vercel/docker",
-      "config": {
-        "dockerfile": "genres_styles/dockerfile"
-      }
+      "use": "@vercel/static-build"
     },
     {
       "src": "scores/dockerfile",
-      "use": "@vercel/docker",
-      "config": {
-        "dockerfile": "scores/dockerfile"
-      }
+      "use": "@vercel/static-build"
     }
   ],
   "routes": [
