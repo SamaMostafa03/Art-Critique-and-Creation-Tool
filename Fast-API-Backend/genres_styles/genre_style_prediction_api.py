@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import json
 import numpy as np
+import gdown
 
 
 class MultiTaskClassifier(nn.Module):
@@ -36,11 +37,24 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = MultiTaskClassifier().to(device)
 
 # Load weights and strip "module." if needed
-state_dict = torch.load("genre_style_model_weights.pth", map_location=device)
-if list(state_dict.keys())[0].startswith("module."):
-    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-model.load_state_dict(state_dict)
-model.eval()
+# Load models
+model_path = {
+    "genres_styles": "https://drive.google.com/uc?id=1XsU-fHBK9Asu2gkoaxJmJAbFRp_IZ5bv"
+}
+def load_model(model_path):
+    for attr, url in model_path.items():
+        path = f"{attr}.pth"
+        gdown.download(url, path, quiet=False)
+        state_dict = torch.load(path, map_location=device, weights_only=False)
+        model.load_state_dict(state_dict, strict=False)
+        if list(state_dict.keys())[0].startswith("module."):
+            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+        model.load_state_dict(state_dict)
+        model.eval()
+    return model
+
+
+model = load_model(model_path)
 
 # Image preprocessing
 def preprocess_image(image: Image.Image):
@@ -59,7 +73,7 @@ def load_classes(filename):
             classes = json.load(f)
         return {int(k): v for k, v in classes.items()}
     except Exception as e:
-        print(f"Error loading classes from {filename}: {e}")  # Optional: Log the error message
+        print(f"Error loading classes from {filename}: {e}")
         return {}
 
 style_classes = load_classes("style_classes.json")
@@ -91,3 +105,4 @@ async def predict_genre_style(file: UploadFile = File(...)):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 #for running -> uvicorn genre_style_prediction_api:app --reload
+#C:\Users\Sama\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe -m pip install -r requirements.txt
