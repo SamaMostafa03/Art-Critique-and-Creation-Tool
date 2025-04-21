@@ -10,6 +10,7 @@ import torch.nn as nn
 import json
 import numpy as np
 import gdown
+from vercel_fastapi import VercelFastAPI
 
 
 class MultiTaskClassifier(nn.Module):
@@ -80,7 +81,7 @@ style_classes = load_classes("style_classes.json")
 genre_classes = load_classes("genre_classes.json")
 
 app = FastAPI(title="WikiArt Classification API", description="Predicts the style and genre of an artwork.")
-
+app = VercelFastAPI(app)
 
 @app.get("/")
 def read_root():

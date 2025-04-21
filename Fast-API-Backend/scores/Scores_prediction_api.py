@@ -10,12 +10,15 @@ import os
 from aes_clip import AesCLIP_reg
 import clip
 import gdown
+from vercel_fastapi import VercelFastAPI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ArtVision Scores API", description="Predicts visual attributes of an artwork.")
+app = VercelFastAPI(app)
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
  

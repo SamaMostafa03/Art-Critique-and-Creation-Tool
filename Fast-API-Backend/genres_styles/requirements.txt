@@ -6,3 +6,4 @@ timm
 pillow
 numpy
 gdown
+vercel-fastapi
