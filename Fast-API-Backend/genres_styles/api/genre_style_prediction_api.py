@@ -9,9 +9,8 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import json
 import numpy as np
-import gdown
-from vercel_fastapi import VercelFastAPI
-
+import os
+import requests
 
 class MultiTaskClassifier(nn.Module):
     def __init__(self, model_name="convnext_base", num_genres=10, num_styles=27, drop_rate=0.1, drop_path_rate=0.1):
@@ -37,25 +36,38 @@ class MultiTaskClassifier(nn.Module):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = MultiTaskClassifier().to(device)
 
-# Load weights and strip "module." if needed
-# Load models
 model_path = {
-    "genres_styles": "https://drive.google.com/uc?id=1XsU-fHBK9Asu2gkoaxJmJAbFRp_IZ5bv"
+    "genres_styles": "https://huggingface.co/Bambii-03/wikiart-genre-style-model/resolve/main/genre_style_model_weights.pth"
 }
+
+def download_from_hf(url, dest_path):
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(dest_path, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
 def load_model(model_path):
     for attr, url in model_path.items():
         path = f"{attr}.pth"
-        gdown.download(url, path, quiet=False)
+        if not os.path.exists(path):
+            print(f"Downloading {attr} model...")
+            download_from_hf(url, path)
         state_dict = torch.load(path, map_location=device, weights_only=False)
-        model.load_state_dict(state_dict, strict=False)
         if list(state_dict.keys())[0].startswith("module."):
             state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-        model.load_state_dict(state_dict)
+        model.load_state_dict(state_dict, strict=False)
         model.eval()
     return model
 
+model = None
 
-model = load_model(model_path)
+def get_model():
+    global model
+    if model is None:
+        model = MultiTaskClassifier().to(device)
+        model = load_model(model_path)
+    return model
 
 # Image preprocessing
 def preprocess_image(image: Image.Image):
@@ -81,12 +93,10 @@ style_classes = load_classes("style_classes.json")
 genre_classes = load_classes("genre_classes.json")
 
 app = FastAPI(title="WikiArt Classification API", description="Predicts the style and genre of an artwork.")
-app = VercelFastAPI(app)
 
 @app.get("/")
-def read_root():
-    return {"message": "FastAPI is running!"}
-
+async def health_check():
+    return "FastAPI is running!"
 
 @app.post("/predict-style-genre/")
 async def predict_genre_style(file: UploadFile = File(...)):
@@ -94,6 +104,7 @@ async def predict_genre_style(file: UploadFile = File(...)):
         contents = await file.read()
         image = Image.open(BytesIO(contents)).convert("RGB")
         input_tensor = preprocess_image(image).to(device)
+        model = get_model()  # <-- Lazy load here
         with torch.no_grad():
             genre_logits, style_logits = model(input_tensor)
             genre = torch.argmax(genre_logits, dim=1).item()
