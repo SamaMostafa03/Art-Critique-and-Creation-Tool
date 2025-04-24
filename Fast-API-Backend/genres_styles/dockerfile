@@ -29,13 +29,13 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /install /usr/local
 
 # Copy app code
-COPY genre_style_prediction_api.py .
+COPY app.py .
 COPY style_classes.json .
 COPY genre_classes.json .
 
 # Expose FastAPI port
-EXPOSE 10000
+EXPOSE 7860
 
 # Run FastAPI app
-CMD ["uvicorn", "genre_style_prediction_api:app", "--host", "0.0.0.0", "--port", "10000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
     
