@@ -1,3 +1,10 @@
+import os
+# Set writable cache directory
+os.environ["HF_HOME"] = "/tmp"
+os.environ["TRANSFORMERS_CACHE"] = "/tmp"
+os.environ["HF_HUB_CACHE"] = "/tmp"
+os.environ["TORCH_HOME"] = "/tmp"
+
 from fastapi import FastAPI, File, UploadFile, HTTPException
 import torch
 import torchvision.transforms as transforms
@@ -9,35 +16,40 @@ import sys
 import os
 from aes_clip import AesCLIP_reg
 import clip
-import gdown
-from vercel_fastapi import VercelFastAPI
+import requests
+import urllib.request
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ArtVision Scores API", description="Predicts visual attributes of an artwork.")
-app = VercelFastAPI(app)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
 logger.info(f"Using device: {device}")
  
-model_paths = {
-    "total": "https://drive.google.com/uc?id=1OuIszB9snbL1wd8JAMRmqF7n8vS-qLUm",
-    "color": "https://drive.google.com/uc?id=10XuvJiJ8kgL0a5-rmpvuFA4KZ8oq0x1f",
-    "composition": "https://drive.google.com/uc?id=11U4p7uaf0P4XedBPHW4g23KzBini734h",
-    "texture": "https://drive.google.com/uc?id=1-8VdYiGpp9Oj-u2BRyUeORFku0vTvolK"
+models_paths = {
+    "total": "https://huggingface.co/Bambii-03/scores/resolve/main/best_Total_aesthetic_score_model.pth",
+    "color": "https://huggingface.co/Bambii-03/scores/resolve/main/best_Color_model.pth",
+    "composition": "https://huggingface.co/Bambii-03/scores/resolve/main/best_Layout_and_composition_model.pth",
+    "texture": "https://huggingface.co/Bambii-03/scores/resolve/main/best_Layout_and_composition_model.pth"
 }
+temp_path = ""
 
 # Load models
 def load_all_models(model_paths, clip_name="ViT-B/16"):
     models = {}
     for attr, url in model_paths.items():
         try:
-            path = f"{attr}.pth"
-            gdown.download(url, path, quiet=False)
+            path = temp_path + f"{attr}.pth"
+            if not os.path.exists(path):
+                print(f"Downloading {attr} model...")
+                urllib.request.urlretrieve(url, path)
             model = AesCLIP_reg(clip_name).to(device)
             state_dict = torch.load(path, map_location=device, weights_only=False)
+            if list(state_dict.keys())[0].startswith("module."):
+                state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
             model.load_state_dict(state_dict, strict=False)
             model.eval()
             models[attr] = model
@@ -46,8 +58,7 @@ def load_all_models(model_paths, clip_name="ViT-B/16"):
             logger.error(f"Error loading model {attr}: {e}")
     return models
 
-
-models = load_all_models(model_paths, "ViT-B/16")
+models = load_all_models(models_paths, "ViT-B/16")
 
 # Image preprocessing
 clip_preprocess = transforms.Compose([
@@ -114,3 +125,4 @@ async def predict_image(file: UploadFile = File(...)):
         logger.error(f"Error processing image: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
     
+#uvicorn app:app --reload

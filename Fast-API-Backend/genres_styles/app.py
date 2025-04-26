@@ -1,3 +1,10 @@
+import os
+# Set writable cache directory
+os.environ["HF_HOME"] = "/tmp"
+os.environ["TRANSFORMERS_CACHE"] = "/tmp"
+os.environ["HF_HUB_CACHE"] = "/tmp"
+os.environ["TORCH_HOME"] = "/tmp"
+
 import timm  
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
@@ -9,8 +16,8 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import json
 import numpy as np
-import os
 import requests
+import urllib.request
 
 class MultiTaskClassifier(nn.Module):
     def __init__(self, model_name="convnext_base", num_genres=10, num_styles=27, drop_rate=0.1, drop_path_rate=0.1):
@@ -34,40 +41,26 @@ class MultiTaskClassifier(nn.Module):
 
 # Initialize and load model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Initialize the model object before using it
 model = MultiTaskClassifier().to(device)
 
-model_path = {
+model_url = {
     "genres_styles": "https://huggingface.co/Bambii-03/wikiart-genre-style-model/resolve/main/genre_style_model_weights.pth"
 }
+model_path = "/tmp/genre_style_model_weights.pth"
 
-def download_from_hf(url, dest_path):
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-    with open(dest_path, "wb") as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
-
-def load_model(model_path):
-    for attr, url in model_path.items():
-        path = f"{attr}.pth"
-        if not os.path.exists(path):
+def load_model(model_url):
+    for attr, url in model_url.items():
+        if not os.path.exists(model_path):
             print(f"Downloading {attr} model...")
-            download_from_hf(url, path)
-        state_dict = torch.load(path, map_location=device, weights_only=False)
-        if list(state_dict.keys())[0].startswith("module."):
-            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+            urllib.request.urlretrieve(url, model_path)  # Corrected URL usage here
+        state_dict = torch.load(model_path, map_location=device, weights_only=False)
         model.load_state_dict(state_dict, strict=False)
         model.eval()
     return model
 
-model = None
-
-def get_model():
-    global model
-    if model is None:
-        model = MultiTaskClassifier().to(device)
-        model = load_model(model_path)
-    return model
+# Now, model is initialized outside of the function.
+model = load_model(model_url)
 
 # Image preprocessing
 def preprocess_image(image: Image.Image):
@@ -104,7 +97,6 @@ async def predict_genre_style(file: UploadFile = File(...)):
         contents = await file.read()
         image = Image.open(BytesIO(contents)).convert("RGB")
         input_tensor = preprocess_image(image).to(device)
-        model = get_model()  # <-- Lazy load here
         with torch.no_grad():
             genre_logits, style_logits = model(input_tensor)
             genre = torch.argmax(genre_logits, dim=1).item()
@@ -115,6 +107,3 @@ async def predict_genre_style(file: UploadFile = File(...)):
         }
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
-#for running -> uvicorn genre_style_prediction_api:app --reload
-#C:\Users\Sama\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe -m pip install -r requirements.txt

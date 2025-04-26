@@ -12,10 +12,9 @@
     # Copy and install Python dependencies
     COPY requirements.txt .
 
-    RUN apt-get update && apt-get install -y git \
-        && pip install --upgrade pip \
+    RUN pip install --upgrade pip \
         && pip install --no-cache-dir --prefix=/install -r requirements.txt
-        
+    
     # ----------- STAGE 2: Runtime -----------
     FROM python:3.10-slim
     
@@ -32,7 +31,6 @@
     
     # Copy app code
     COPY app.py .
-    COPY aes_clip.py .
     
     # Expose FastAPI port
     EXPOSE 7860
