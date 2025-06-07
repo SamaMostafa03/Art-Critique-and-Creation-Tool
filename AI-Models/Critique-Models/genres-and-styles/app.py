@@ -107,3 +107,6 @@ async def predict_genre_style(file: UploadFile = File(...)):
         }
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+#for running -> uvicorn genre_style_prediction_api:app --reload
+#C:\Users\Sama\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe -m pip install -r requirements.txt
