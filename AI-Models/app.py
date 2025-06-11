@@ -303,9 +303,8 @@ async def stylize(content_image: UploadFile = File(...), style_image: UploadFile
     img_pil = Image.fromarray(img_array)
     buf = BytesIO()
     img_pil.save(buf, format='JPEG')
-    buf.seek(0)
-    return StreamingResponse(buf, media_type="image/jpeg")
-
+    img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+    return {"image_base64": img_str}
 # ---------------------
 # Coloring Generation
 # ---------------------
